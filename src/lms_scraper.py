@@ -32,6 +32,7 @@ def aes_encrypt(plaintext: str) -> str:
 
 
 def login(session: requests.Session) -> bool:
+    session.get(f"{BASE_URL}/", timeout=20)
     enc_user = aes_encrypt(REG_NO)
     enc_pass = aes_encrypt(PASSWORD)
     data = {
@@ -42,12 +43,18 @@ def login(session: requests.Session) -> bool:
         "returnUrl": "",
         "source": "i",
     }
-    resp = session.post(f"{BASE_URL}/", data=data, allow_redirects=True)
+    resp = session.post(f"{BASE_URL}/", data=data, allow_redirects=True, timeout=20)
     ok = resp.status_code == 200 and resp.url == f"{BASE_URL}/Dashboard"
     if ok:
         print(f"[LOGIN] Success — session: {resp.url}")
     else:
         print(f"[LOGIN] Failed — status={resp.status_code}, url={resp.url}")
+        soup = BeautifulSoup(resp.text, "html.parser")
+        err = soup.find(class_="FailureText") or soup.find(class_="field-validation-error")
+        if err:
+            print(f"[LOGIN] Error text: {err.get_text(strip=True)[:200]}")
+        if "Invalid" in resp.text:
+            print("[LOGIN] Server rejected credentials")
     return ok
 
 
